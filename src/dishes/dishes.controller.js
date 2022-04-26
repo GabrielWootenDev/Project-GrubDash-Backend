@@ -41,6 +41,14 @@ function bodyDataHas(propertyName) {
   };
 }
 
+function validateExistingId(req, res, next) {
+  const dish = res.locals.dish;
+  const { data: { id } = {} } = req.body;
+  dish.id === id || !id
+    ? next()
+    : next({ status: 400, message: `Dish id does not match ${id}` });
+}
+
 function validatePrice(req, res, next) {
   const { data: { price } = {} } = req.body;
   Number.isInteger(price) && price > 0
@@ -68,9 +76,7 @@ function create(req, res) {
 
 function update(req, res) {
   const foundDish = res.locals.dish;
-  const {
-    data: { name, description, price, image_url },
-  } = req.body;
+  const { data: { name, description, price, image_url } = {} } = req.body;
 
   foundDish.name = name;
   foundDish.description = description;
@@ -96,6 +102,7 @@ module.exports = {
     bodyDataHas("description"),
     bodyDataHas("image_url"),
     validatePrice,
+    validateExistingId,
     update,
   ],
 };

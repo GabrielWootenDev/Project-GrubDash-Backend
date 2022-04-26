@@ -1,5 +1,3 @@
-const { Router } = require("express");
-const app = require("../app");
 const controller = require("./dishes.controller");
 const router = require("express").Router();
 const methodNotAllowed = require("../errors/methodNotAllowed");
