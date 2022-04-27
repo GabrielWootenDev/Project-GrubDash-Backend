@@ -91,7 +91,7 @@ function dishesValidation(req, res, next) {
 
 function dishesQuantityValidation(req, res, next) {
   const dishes = res.locals.dishes;
-  dishes.map((dish, index) =>
+  const validateDishes = dishes.map((dish, index) =>
     !dish.quantity || dish.quantity <= 0 || !Number.isInteger(dish.quantity)
       ? next({
           status: 400,
