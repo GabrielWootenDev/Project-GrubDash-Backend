@@ -71,7 +71,7 @@ function orderExists(req, res, next) {
 
 // Will check the body data object to find keys matching the specified propertyName.
 function bodyDataHas(propertyName) {
-  return function (req, res, next) {
+  return function checkData(req, res, next) {
     const { data = {} } = req.body;
     res.locals.bodyData = req.body;
     data[propertyName]

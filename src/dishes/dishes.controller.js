@@ -64,7 +64,7 @@ function dishExists(req, res, next) {
 
 // bodyDataHas will check if the body of our request includes the specified string as a key before proceeding.
 function bodyDataHas(propertyName) {
-  return function (req, res, next) {
+  return function checkData(req, res, next) {
     const { data = {} } = req.body;
     data[propertyName]
       ? next()
