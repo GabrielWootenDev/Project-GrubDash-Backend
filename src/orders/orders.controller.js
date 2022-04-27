@@ -8,16 +8,6 @@ const nextId = require("../utils/nextId");
 
 // TODO: Implement the /orders handlers needed to make the tests pass
 
-function orderExists(req, res, next) {
-  const { orderId } = req.params;
-  const foundOrder = orders.find((order) => order.id === orderId);
-  if (!foundOrder) {
-    next({status: 404, message: `Order Id ${orderId} not found`});
-  }
-  res.locals.order = foundOrder;
-  next()
-}
-
 function list(req, res) {
   res.json({ data: orders });
 }
@@ -41,6 +31,38 @@ function create(req, res) {
   res.status(201).json({ data: newOrder });
 }
 
+function update(req, res) {
+  const order = res.locals.order;
+  const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
+  const newDishes = dishes.filter((dish) => dish.quantity > 0);
+
+  order.deliverTo = deliverTo;
+  order.mobileNumber = mobileNumber;
+  order.status = status;
+  order.dishes = newDishes;
+
+  res.json({ data: order });
+}
+
+function destroy(req, res, next) {
+  const order = res.locals.order;
+  const { orderId } = req.params;
+  const index = orders.findIndex((order) => order.id === orderId);
+  // `splice()` returns an array of the deleted elements, even if it is one element
+  const deletedOrders = orders.splice(index, 1);
+  res.sendStatus(204);
+}
+
+function orderExists(req, res, next) {
+  const { orderId } = req.params;
+  const foundOrder = orders.find((order) => order.id === orderId);
+  if (!foundOrder) {
+    next({ status: 404, message: `Order Id ${orderId} not found` });
+  }
+  res.locals.order = foundOrder;
+  next();
+}
+
 function bodyDataHas(propertyName) {
   return function (req, res, next) {
     const { data = {} } = req.body;
@@ -60,23 +82,52 @@ function dishesValidation(req, res, next) {
 
 function dishesQuantityValidation(req, res, next) {
   const dishes = res.locals.dishes;
-  dishes.map((dish, index) => !dish.quantity || dish.quantity <= 0 || !Number.isInteger(dish.quantity) ? next({status: 400, message: `Dish ${index} must have a quantity that is an integer greater than 0`}) : null)
+  dishes.map((dish, index) =>
+    !dish.quantity || dish.quantity <= 0 || !Number.isInteger(dish.quantity)
+      ? next({
+          status: 400,
+          message: `Dish ${index} must have a quantity that is an integer greater than 0`,
+        })
+      : null
+  );
   next();
 }
 
-function update(req, res) {
+function validateExistingId(req, res, next) {
   const order = res.locals.order;
-  const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
-  const newDishes = dishes.filter((dish) => dish.quantity > 0)
-
-  order.deliverTo = deliverTo;
-  order.mobileNumber = mobileNumber;
-  order.status = status;
-  order.dishes = newDishes;
-
-  res.json({ data: order });
+  const { data: { id } = {} } = req.body;
+  order.id === id || !id
+    ? next()
+    : next({ status: 400, message: `Order id does not match ${id}` });
 }
 
+function validateStatus(req, res, next) {
+  const { data: order } = req.body;
+  if (order.status === "delivered") {
+    next({ status: 400, message: "A delivered order cannot be changed" });
+  }
+  const validStatus = [
+    "pending",
+    "preparing",
+    "out-for-delivery",
+    "delievered",
+  ];
+  !order.status || !validStatus.includes(order.status)
+    ? next({
+        status: 400,
+        message:
+          "Order must have a status of pending, preparing, out-for-delivery, delivered",
+      })
+    : next();
+}
+
+function isOrderPending(req, res, next) {
+  const order = res.locals.order;
+  if (order.status !== "pending") {
+    next({ status: 400, message: "Cannot delete a non-pending order" });
+  }
+  next();
+}
 
 module.exports = {
   list,
@@ -89,5 +140,17 @@ module.exports = {
     dishesQuantityValidation,
     create,
   ],
-  update: [orderExists, update]
+  update: [
+    orderExists,
+    isOrderPending,
+    validateStatus,
+    bodyDataHas("deliverTo"),
+    bodyDataHas("mobileNumber"),
+    bodyDataHas("dishes"),
+    dishesValidation,
+    dishesQuantityValidation,
+    validateExistingId,
+    update,
+  ],
+  delete: [orderExists, isOrderPending, destroy],
 };
