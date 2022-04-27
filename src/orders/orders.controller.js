@@ -6,8 +6,7 @@ const orders = require(path.resolve("src/data/orders-data"));
 // Use this function to assigh ID's when necessary
 const nextId = require("../utils/nextId");
 
-// TODO: Implement the /orders handlers needed to make the tests pass
-
+// The first 5 functions are our major handlers, the rest are middleware for validation and data tracking;
 function list(req, res) {
   res.json({ data: orders });
 }
@@ -20,7 +19,7 @@ function read(req, res) {
 function create(req, res) {
   const {
     data: { deliverTo, mobileNumber, dishes },
-  } = req.body;
+  } = res.locals.bodyData;
   const newOrder = {
     id: nextId(),
     deliverTo,
@@ -45,14 +44,21 @@ function update(req, res) {
 }
 
 function destroy(req, res, next) {
-  const order = res.locals.order;
-  const { orderId } = req.params;
-  const index = orders.findIndex((order) => order.id === orderId);
+  const index = res.locals.orderIndex;
   // `splice()` returns an array of the deleted elements, even if it is one element
   const deletedOrders = orders.splice(index, 1);
   res.sendStatus(204);
 }
 
+// only use in destroy but I wanted to keep single responsibility in mind, this function finds the index of the designated order from the orderId.
+function findIndex(req, res, next) {
+  const { orderId } = req.params;
+  const index = orders.findIndex((order) => order.id === orderId);
+  res.locals.orderIndex = index;
+  next();
+}
+
+// orderExists searches our orders array to find a matching order Id and returns the complete order object for use in many other functions.
 function orderExists(req, res, next) {
   const { orderId } = req.params;
   const foundOrder = orders.find((order) => order.id === orderId);
@@ -63,17 +69,20 @@ function orderExists(req, res, next) {
   next();
 }
 
+// Will check the body data object to find keys matching the specified propertyName.
 function bodyDataHas(propertyName) {
   return function (req, res, next) {
     const { data = {} } = req.body;
+    res.locals.bodyData = req.body;
     data[propertyName]
       ? next()
       : next({ status: 400, message: `Order must include a ${propertyName}` });
   };
 }
 
+//both dish validations handle seperate responsibilites as you cant have dishesQuantity without validating dishes in exist and are an array first.
 function dishesValidation(req, res, next) {
-  const { data: { dishes } = {} } = req.body;
+  const { data: { dishes } } = res.locals.bodyData;;
   res.locals.dishes = dishes;
   Array.isArray(dishes) && dishes.length > 0
     ? next()
@@ -92,7 +101,7 @@ function dishesQuantityValidation(req, res, next) {
   );
   next();
 }
-
+//attempts to match our orderId with the id in our update, otherwise returns an error if it cannot
 function validateExistingId(req, res, next) {
   const order = res.locals.order;
   const { data: { id } = {} } = req.body;
@@ -101,11 +110,18 @@ function validateExistingId(req, res, next) {
     : next({ status: 400, message: `Order id does not match ${id}` });
 }
 
-function validateStatus(req, res, next) {
-  const { data: order } = req.body;
+// checks the order.status for "delivered"
+function isOrderDelivered(req, res, next) {
+  const order = res.locals.order;
   if (order.status === "delivered") {
     next({ status: 400, message: "A delivered order cannot be changed" });
   }
+  next();
+}
+
+//ensures any updates have a valid status of 1 of 4 options.
+function validateStatus(req, res, next) {
+  const order = res.locals.order;
   const validStatus = [
     "pending",
     "preparing",
@@ -121,6 +137,7 @@ function validateStatus(req, res, next) {
     : next();
 }
 
+//ensures a pending order cannot be deleted with destroy by checking for "pending" in the order.status
 function isOrderPending(req, res, next) {
   const order = res.locals.order;
   if (order.status !== "pending") {
@@ -142,7 +159,7 @@ module.exports = {
   ],
   update: [
     orderExists,
-    isOrderPending,
+    isOrderDelivered,
     validateStatus,
     bodyDataHas("deliverTo"),
     bodyDataHas("mobileNumber"),
@@ -152,5 +169,5 @@ module.exports = {
     validateExistingId,
     update,
   ],
-  delete: [orderExists, isOrderPending, destroy],
+  delete: [orderExists, findIndex, isOrderPending, destroy],
 };
