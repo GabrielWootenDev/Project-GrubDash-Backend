@@ -121,7 +121,7 @@ function isOrderDelivered(req, res, next) {
 
 //ensures any updates have a valid status of 1 of 4 options.
 function validateStatus(req, res, next) {
-  const order = res.locals.order;
+  const { data: order } = req.body;
   const validStatus = [
     "pending",
     "preparing",
