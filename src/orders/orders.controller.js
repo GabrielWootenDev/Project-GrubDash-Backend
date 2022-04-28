@@ -30,16 +30,18 @@ function create(req, res) {
     mobileNumber,
     dishes,
   };
-  
+
   orders.push(newOrder);
   res.status(201).json({ data: newOrder });
 }
+
 
 function update(req, res) {
   const order = res.locals.order;
   const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
   const newDishes = dishes.filter((dish) => dish.quantity > 0);
 
+  // for the update we are changing each property of the order object to the corresponding ones in the request body.
   order.deliverTo = deliverTo;
   order.mobileNumber = mobileNumber;
   order.status = status;
