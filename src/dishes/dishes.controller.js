@@ -19,9 +19,11 @@ function read(req, res) {
 
 // create makes a news dish with a name, description, price, and image_url provided in the request body and pushes it to the dishes array.
 function create(req, res) {
+  //this data is the data from our request body, destructured for easier access.
   const {
     data: { name, description, price, image_url },
   } = req.body;
+  //we create a newDish with information from our request body and a randomized id and push it into the dishes array to create a new entry.
   const newDish = {
     id: nextId(),
     name,
@@ -63,15 +65,29 @@ function dishExists(req, res, next) {
 }
 
 // bodyDataHas will check if the body of our request includes the specified string as a key before proceeding.
-function bodyDataHas(propertyName) {
-  return function checkData(req, res, next) {
-    const { data = {} } = req.body;
-    data[propertyName]
-      ? next()
-      : next({ status: 400, message: `Dish must include a ${propertyName}` });
-  };
+
+function bodyDataHasName(req, res, next) {
+  const { data = {} } = req.body;
+  data["name"]
+    ? next()
+    : next({ status: 400, message: `Dish must include a name` });
 }
 
+function bodyDataHasDescription(req, res, next) {
+  const { data = {} } = req.body;
+  data["description"]
+    ? next()
+    : next({ status: 400, message: `Dish must include a description` });
+}
+
+function bodyDataHasImageUrl(req, res, next) {
+  const { data = {} } = req.body;
+  data["image_url"]
+    ? next()
+    : next({ status: 400, message: `Dish must include a image_url` });
+}
+
+// validateExistingId and validatePrice checks our dish stored in res.locals to verify the id and/or price is properly formatted for the update/create functions.
 function validateExistingId(req, res, next) {
   const dish = res.locals.dish;
   const { data: { id } = {} } = req.body;
@@ -90,23 +106,21 @@ function validatePrice(req, res, next) {
       });
 }
 
-
-
 module.exports = {
   list,
   read: [dishExists, read],
   create: [
-    bodyDataHas("name"),
-    bodyDataHas("description"),
-    bodyDataHas("image_url"),
+    bodyDataHasName,
+    bodyDataHasDescription,
+    bodyDataHasImageUrl,
     validatePrice,
     create,
   ],
   update: [
     dishExists,
-    bodyDataHas("name"),
-    bodyDataHas("description"),
-    bodyDataHas("image_url"),
+    bodyDataHasName,
+    bodyDataHasDescription,
+    bodyDataHasImageUrl,
     validatePrice,
     validateExistingId,
     update,

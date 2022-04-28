@@ -16,16 +16,21 @@ function read(req, res) {
   res.json({ data: foundOrder });
 }
 
+// create makes a news order with an id, deliverTo, mobileNumber, and dishes provided in the request body and pushes it to the dishes array.
 function create(req, res) {
+  //this data is the data from our request body, destructured for easier access.
   const {
     data: { deliverTo, mobileNumber, dishes },
   } = res.locals.bodyData;
+
+  //we create a newOrder with information from our request body and a randomized id and push it into the orders array to create a new entry.
   const newOrder = {
     id: nextId(),
     deliverTo,
     mobileNumber,
     dishes,
   };
+  
   orders.push(newOrder);
   res.status(201).json({ data: newOrder });
 }
@@ -70,19 +75,36 @@ function orderExists(req, res, next) {
 }
 
 // Will check the body data object to find keys matching the specified propertyName.
-function bodyDataHas(propertyName) {
-  return function checkData(req, res, next) {
-    const { data = {} } = req.body;
-    res.locals.bodyData = req.body;
-    data[propertyName]
-      ? next()
-      : next({ status: 400, message: `Order must include a ${propertyName}` });
-  };
+
+function bodyDataHasDeliverTo(req, res, next) {
+  const { data = {} } = req.body;
+  res.locals.bodyData = req.body;
+  data["deliverTo"]
+    ? next()
+    : next({ status: 400, message: `Order must include a deliverTo property` });
+}
+
+function bodyDataHasMobileNumber(req, res, next) {
+  const { data = {} } = req.body;
+  res.locals.bodyData = req.body;
+  data["mobileNumber"]
+    ? next()
+    : next({ status: 400, message: `Order must include a mobileNumber property` });
+}
+
+function bodyDataHasDishes(req, res, next) {
+  const { data = {} } = req.body;
+  res.locals.bodyData = req.body;
+  data["dishes"]
+    ? next()
+    : next({ status: 400, message: `Order must include a dishes property` });
 }
 
 //both dish validations handle seperate responsibilites as you cant have dishesQuantity without validating dishes in exist and are an array first.
 function dishesValidation(req, res, next) {
-  const { data: { dishes } } = res.locals.bodyData;;
+  const {
+    data: { dishes },
+  } = res.locals.bodyData;
   res.locals.dishes = dishes;
   Array.isArray(dishes) && dishes.length > 0
     ? next()
@@ -119,7 +141,7 @@ function isOrderDelivered(req, res, next) {
   next();
 }
 
-//ensures any updates have a valid status of 1 of 4 options.
+//checks the data in our request body to ensure any updates include validStatus of 1 of 4 options.
 function validateStatus(req, res, next) {
   const { data: order } = req.body;
   const validStatus = [
@@ -150,9 +172,9 @@ module.exports = {
   list,
   read: [orderExists, read],
   create: [
-    bodyDataHas("deliverTo"),
-    bodyDataHas("mobileNumber"),
-    bodyDataHas("dishes"),
+    bodyDataHasDeliverTo,
+    bodyDataHasMobileNumber,
+    bodyDataHasDishes,
     dishesValidation,
     dishesQuantityValidation,
     create,
@@ -161,9 +183,9 @@ module.exports = {
     orderExists,
     isOrderDelivered,
     validateStatus,
-    bodyDataHas("deliverTo"),
-    bodyDataHas("mobileNumber"),
-    bodyDataHas("dishes"),
+    bodyDataHasDeliverTo,
+    bodyDataHasMobileNumber,
+    bodyDataHasDishes,
     dishesValidation,
     dishesQuantityValidation,
     validateExistingId,
